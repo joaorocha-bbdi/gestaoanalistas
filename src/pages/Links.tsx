@@ -7,7 +7,6 @@ import { useDeleteLink, useLinks, useSaveLink } from '@/data/queries'
 import { errorMessage } from '@/lib/status'
 import type { UsefulLink } from '@/lib/types'
 
-const host = (url: string) => { try { return new URL(url).host.replace(/^www\./, '') } catch { return url } }
 
 /** Links das ferramentas usadas nas atividades. Todos veem; só o gestor edita. */
 export default function Links() {
@@ -44,9 +43,9 @@ export default function Links() {
                 )}
               </div>
               <p className="mt-2 flex-1 text-base text-muted">{l.description || 'Sem descrição.'}</p>
-              <a href={l.url} target="_blank" rel="noreferrer"
+              <a href={l.url} target="_blank" rel="noreferrer" aria-label={`Abrir ${l.name}`}
                 className="mt-4 inline-flex items-center gap-2 self-start rounded bg-signal px-3 py-2 text-sm font-semibold text-signal-ink hover:brightness-95">
-                Abrir {host(l.url)} <ExternalLink className="size-4" aria-hidden />
+                Abrir <ExternalLink className="size-4" aria-hidden />
               </a>
             </li>
           ))}
