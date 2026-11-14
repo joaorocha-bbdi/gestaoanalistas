@@ -1,0 +1,38 @@
+name: Banco (migrations)
+
+# Aplica no Supabase as migrations novas de supabase/migrations a cada push na main.
+# Só roda o que ainda não foi aplicado (o Supabase guarda o histórico).
+# Antes, valida tudo num Postgres embutido (npm run test:db); se falhar, nada vai para o banco.
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/migrations/**']
+  workflow_dispatch:
+
+concurrency:
+  group: db-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Testes do banco (antes de aplicar)
+        run: npm run test:db
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Conectar ao projeto
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+      - name: Aplicar migrations novas
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"

@@ -1,0 +1,106 @@
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow-condensed/500.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Direção visual: quadro de partidas.
+  O dia é uma tabela de horários; o horário-limite de cada atividade vira uma
+  "placa" inspirada na sinalização de trânsito. O verde da marca (--signal) é só
+  preenchimento: placa, botão principal, seleção. Texto, gráficos e links usam a tinta.
+*/
+:root {
+  --bg: 232 233 228;
+  --surface: 246 246 242;
+  --subtle: 224 225 219;
+  --hover: 218 219 212;
+  --line: 207 208 201;
+  --line-strong: 160 162 156;
+  --ink: 26 28 30;
+  --muted: 92 96 99;
+  --faint: 132 135 136;
+  --accent: 26 28 30;            /* traço de gráficos, links, foco: a própria tinta */
+  --accent-ink: 246 246 242;
+  --accent-soft: 214 234 221;    /* tinta verde clara: hoje, seleção */
+  --signal: 15 123 63;           /* verde da marca */
+  --signal-ink: 255 255 255;
+  --rail: 24 26 28;
+  --rail-accent: 52 199 107;
+  --rail-ink: 236 236 230;
+  --ok: 14 122 71;
+  --warn: 179 90 0;
+  --bad: 190 42 31;
+  --bad-ink: 255 255 255;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: 18 19 21;
+  --surface: 27 28 31;
+  --subtle: 34 36 39;
+  --hover: 41 43 47;
+  --line: 48 50 54;
+  --line-strong: 84 87 92;
+  --ink: 237 237 232;
+  --muted: 150 153 156;
+  --faint: 104 107 111;
+  --accent: 237 237 232;
+  --accent-ink: 18 19 21;
+  --accent-soft: 20 52 33;
+  --signal: 52 199 107;
+  --signal-ink: 4 32 15;
+  --rail: 12 13 14;
+  --rail-accent: 52 199 107;
+  --rail-ink: 236 236 230;
+  --ok: 92 191 140;
+  --warn: 232 162 74;
+  --bad: 240 124 112;
+  --bad-ink: 40 12 9;
+  color-scheme: dark;
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-bg text-ink font-sans text-base antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+  :focus-visible { outline: 2px solid rgb(var(--ink)); outline-offset: 2px; border-radius: 3px; }
+  ::selection { background: rgb(var(--signal) / 0.3); color: rgb(var(--ink)); }
+  input, textarea, select, button { font: inherit; color: inherit; }
+  h1, h2, h3 { font-family: 'Barlow Condensed', 'Barlow', system-ui, sans-serif; letter-spacing: 0; }
+}
+
+@layer components {
+  /*
+    Placa de horário: retângulo com borda interna, como placa de advertência.
+    Estados mudam preenchimento E conteúdo (ícone/texto ao lado), nunca só a cor.
+  */
+  .plate {
+    @apply inline-flex shrink-0 items-center justify-center rounded-lg font-display font-semibold leading-none tnum;
+    background: rgb(var(--plate-bg));
+    color: rgb(var(--plate-fg));
+    box-shadow:
+      inset 0 0 0 2px rgb(var(--plate-bg)),
+      inset 0 0 0 3.5px rgb(var(--plate-fg) / var(--plate-rule, 1));
+  }
+  .plate-open    { --plate-bg: var(--signal);  --plate-fg: var(--signal-ink); }
+  .plate-late    { --plate-bg: var(--bad);     --plate-fg: var(--bad-ink); }
+  .plate-done    { --plate-bg: var(--subtle);  --plate-fg: var(--muted); --plate-rule: .35; }
+  .plate-paused  { --plate-bg: var(--bg);      --plate-fg: var(--faint); --plate-rule: .35; }
+}
+
+@layer utilities {
+  .tnum { font-variant-numeric: tabular-nums; }
+  .scrollbar-thin { scrollbar-width: thin; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
