@@ -408,9 +408,9 @@ export function FullPage({ open, onClose, title, children, labelledBy, backLabel
     >
       <div className="flex h-12 shrink-0 items-center gap-2 bg-rail px-2 text-rail-ink sm:px-4">
         <button type="button" onClick={onClose}
-          className="inline-flex h-8 items-center gap-1.5 rounded px-2 text-sm font-medium text-rail-ink/80 hover:bg-white/10 hover:text-rail-ink">
+          className="inline-flex h-8 items-center gap-1.5 rounded px-2 text-sm font-medium text-rail-ink/80 hover:bg-rail-ink/10 hover:text-rail-ink">
           <X className="size-4" aria-hidden /> {backLabel}
-          <Kbd className="ml-1 border-white/20 bg-transparent text-rail-ink/60">Esc</Kbd>
+          <Kbd className="ml-1 border-rail-ink/20 bg-transparent text-rail-ink/60">Esc</Kbd>
         </button>
       </div>
       <div className="flex-1 overflow-y-auto scrollbar-thin">

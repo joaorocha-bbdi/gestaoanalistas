@@ -16,23 +16,25 @@
   preenchimento: placa, botão principal, seleção. Texto, gráficos e links usam a tinta.
 */
 :root {
-  --bg: 232 233 228;
-  --surface: 246 246 242;
-  --subtle: 224 225 219;
-  --hover: 218 219 212;
-  --line: 207 208 201;
-  --line-strong: 160 162 156;
-  --ink: 26 28 30;
-  --muted: 92 96 99;
-  --faint: 132 135 136;
-  --accent: 26 28 30;            /* traço de gráficos, links, foco: a própria tinta */
-  --accent-ink: 246 246 242;
-  --accent-soft: 214 234 221;    /* tinta verde clara: hoje, seleção */
+  /* Claro: papel quase branco, cartões brancos, linhas finas. A barra lateral acompanha o tema. */
+  --bg: 242 243 239;
+  --surface: 255 255 253;
+  --subtle: 235 236 231;
+  --hover: 227 229 223;
+  --line: 221 222 216;
+  --line-strong: 172 175 168;
+  --ink: 24 26 28;
+  --muted: 86 90 94;
+  --faint: 124 128 130;
+  --accent: 24 26 28;            /* traço de gráficos, links, foco: a própria tinta */
+  --accent-ink: 255 255 253;
+  --accent-soft: 220 239 227;    /* tinta verde clara: hoje, seleção */
   --signal: 15 123 63;           /* verde da marca */
   --signal-ink: 255 255 255;
-  --rail: 24 26 28;
-  --rail-accent: 52 199 107;
-  --rail-ink: 236 236 230;
+  --rail: 232 234 228;           /* um tom abaixo do fundo: separa sem precisar de linha */
+  --rail-accent: 15 123 63;
+  --rail-ink: 24 26 28;
+  --rail-line: 214 216 210;
   --ok: 14 122 71;
   --warn: 179 90 0;
   --bad: 190 42 31;
@@ -58,6 +60,7 @@
   --rail: 12 13 14;
   --rail-accent: 52 199 107;
   --rail-ink: 236 236 230;
+  --rail-line: 38 40 44;
   --ok: 92 191 140;
   --warn: 232 162 74;
   --bad: 240 124 112;

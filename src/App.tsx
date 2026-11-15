@@ -1,28 +1,18 @@
-import { lazy, Suspense, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { AppShell } from '@/components/layout/AppShell'
 import { ErrorNote, Spinner } from '@/components/ui'
 import { ForgotPassword, Login, SetPassword } from '@/pages/auth/AuthPages'
 import Today from '@/pages/analyst/Today'
-import Week from '@/pages/analyst/Week'
-import History from '@/pages/analyst/History'
-import Performance from '@/pages/analyst/Performance'
-import Tests from '@/pages/analyst/Tests'
-import Links from '@/pages/Links'
+import {
+  AnalystDetail, Audit, Export, History, Links, Overview, Performance, Review, Settings, Team, TemplateEditor, Templates,
+  TestApprovals, Tests, Users, Week,
+} from '@/pages/lazy'
 
-// Telas do gestor em chunks separados: o analista no celular não baixa o que não usa.
-const Overview = lazy(() => import('@/pages/admin/Overview'))
-const Team = lazy(() => import('@/pages/admin/Team'))
-const AnalystDetail = lazy(() => import('@/pages/admin/Team').then((m) => ({ default: m.AnalystDetail })))
-const Review = lazy(() => import('@/pages/admin/Review'))
-const TestApprovals = lazy(() => import('@/pages/admin/TestApprovals'))
-const Templates = lazy(() => import('@/pages/admin/Templates'))
-const TemplateEditor = lazy(() => import('@/pages/admin/TemplateEditor'))
-const Users = lazy(() => import('@/pages/admin/Users'))
-const Settings = lazy(() => import('@/pages/admin/Settings'))
-const Audit = lazy(() => import('@/pages/admin/Audit'))
-const Export = lazy(() => import('@/pages/admin/Export'))
+// "Hoje" (tela inicial do analista) vai no pacote principal; as demais são
+// carregadas sob demanda (ver pages/lazy.ts). O Suspense fica no AppShell,
+// para o menu continuar na tela enquanto a página chega.
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, profile, loading, recovery, signOut } = useAuth()
@@ -63,7 +53,7 @@ function PublicOnly({ children }: { children: ReactNode }) {
 
 export default function App() {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '')
-  const a = (el: ReactNode) => <RequireRole role="admin"><Suspense fallback={<Spinner />}>{el}</Suspense></RequireRole>
+  const a = (el: ReactNode) => <RequireRole role="admin">{el}</RequireRole>
   const n = (el: ReactNode) => <RequireRole role="analista">{el}</RequireRole>
   return (
     <BrowserRouter basename={base || '/'}>

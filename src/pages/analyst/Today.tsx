@@ -21,7 +21,6 @@ const TAB_LABEL: Record<Tab, string> = { diario: 'Diário', semanal: 'Semanal', 
 export default function Today() {
   const { profile } = useAuth()
   const today = todayISO()
-  const now = useNow()
   const settings = useSettings()
   // Uma chamada só traz tarefas, etapas, aprovações e solicitações (dashboard_today).
   // A semana recomeça toda segunda: pendências só desta semana (as de antes ficam com o gestor).
@@ -102,7 +101,7 @@ export default function Today() {
       <TaskRow
         key={t.id}
         ref={(el) => { rowRefs.current[i] = el }}
-        task={t} now={now} selected={sel === i} showDate={showDate} block={states.get(t.id)}
+        task={t} selected={sel === i} showDate={showDate} block={states.get(t.id)}
         onFocus={() => setSel(i)}
         onOpen={() => { setSel(i); setOpenId(t.id) }}
       />
@@ -138,7 +137,7 @@ export default function Today() {
             <div className="min-w-0">
               {currentBlock ? (
                 <div className="flex items-center gap-4">
-                  <Plate label={currentBlock.position ?? '·'} state={new Date(currentBlock.task.due_at).getTime() < now ? 'late' : 'open'} size="lg" />
+                  <CurrentPlate block={currentBlock} />
                   <div className="min-w-0">
                     <p className="text-sm text-muted">
                       {currentBlock.stepsDone > 0 ? 'Continue de onde parou' : 'Comece por aqui'}, bloco {currentBlock.position} de {blocks.filter((b) => b.position).length}
@@ -270,6 +269,12 @@ export default function Today() {
       <TaskPanel taskId={openId} onClose={() => setOpenId(null)} onNavigate={navigatePanel} />
     </>
   )
+}
+
+/** Placa do bloco atual: só ela acompanha o relógio. */
+function CurrentPlate({ block }: { block: BlockState }) {
+  const now = useNow()
+  return <Plate label={block.position ?? '·'} state={new Date(block.task.due_at).getTime() < now ? 'late' : 'open'} size="lg" />
 }
 
 /** Um segmento por bloco: o preenchimento mostra o progresso (etapas + envio). */

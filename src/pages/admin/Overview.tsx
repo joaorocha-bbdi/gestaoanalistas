@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ErrorNote, PageHeader, Section, Skeleton } from '@/components/ui'
@@ -37,11 +37,13 @@ export default function Overview() {
     history: { from: view === 'total' ? SINCE_ALWAYS : addDays(today, view === 'mes' ? -365 : -84), to: today },
   }
   const all = useFacts({ ...coveringRange(Object.values(ranges)), userId: f.userId, templateId: f.templateId })
-  const cut = (r: { from: string; to: string }) => (all.isLoading ? undefined : sliceFacts(all.data, r.from, r.to))
-  const recent = cut(ranges.recent)
-  const period = cut(ranges.period)
-  const week = cut(ranges.week)
-  const history = cut(ranges.history)
+  // Recortes memorizados: o relógio (a cada 30 s) não refaz as contas sobre milhares de linhas.
+  const rangeKey = JSON.stringify(ranges)
+  const { recent, period, week, history } = useMemo(() => {
+    const cut = (r: { from: string; to: string }) => (all.isLoading ? undefined : sliceFacts(all.data, r.from, r.to))
+    return { recent: cut(ranges.recent), period: cut(ranges.period), week: cut(ranges.week), history: cut(ranges.history) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all.data, all.isLoading, rangeKey])
 
   const analyses = useProductAnalyses(12)
   const testsQ = useTestsQueue()
@@ -52,7 +54,7 @@ export default function Overview() {
   const pendingItems = testReviews.isLoading ? 0 : testTasks.reduce((n, t) => n + reviewableGroups(t.template_snapshot.fields).reduce((m, g) =>
     m + ((Array.isArray(t.payload[g.key]) ? t.payload[g.key] : []) as unknown[]).filter((_, i) => itemStatus(testReviews.data, t.id, g.key, i).state === 'pendente').length, 0), 0)
   const pendingTests = pendingItems + pendingRequests
-  const overdue = overdueNow(recent ?? [], now)
+  const overdue = useMemo(() => overdueNow(recent ?? [], now), [recent, now])
   const todayOverdue = overdue.filter((x) => x.ref_date === today).length
   const PHRASE = { hoje: 'hoje', semana: 'nesta semana', mes: 'neste mês', '30d': 'nos últimos 30 dias' } as const
   const periodLabel = f.preset === 'custom' ? `de ${fmtDay(f.from)} a ${fmtDay(f.to)}` : PHRASE[f.preset]

@@ -13,7 +13,7 @@ export default {
         ink: v('ink'), muted: v('muted'), faint: v('faint'),
         accent: v('accent'), 'accent-ink': v('accent-ink'), 'accent-soft': v('accent-soft'),
         signal: v('signal'), 'signal-ink': v('signal-ink'),
-        rail: v('rail'), 'rail-ink': v('rail-ink'), 'rail-accent': v('rail-accent'),
+        rail: v('rail'), 'rail-ink': v('rail-ink'), 'rail-accent': v('rail-accent'), 'rail-line': v('rail-line'),
         ok: v('ok'), warn: v('warn'), bad: v('bad'),
       },
       fontFamily: {

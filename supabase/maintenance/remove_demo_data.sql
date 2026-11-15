@@ -60,9 +60,12 @@ begin
   alter table public.task_item_reviews disable trigger a_audit;
   alter table public.template_assignments disable trigger a_audit;
   alter table public.template_assignments disable trigger z_assignments_resync;
+  alter table public.template_exclusions disable trigger a_audit;
+  alter table public.template_exclusions disable trigger z_exclusions_resync;
   alter table public.profiles disable trigger a_audit;
 
   delete from public.template_assignments where user_id = any (demo);
+  delete from public.template_exclusions where user_id = any (demo);
   delete from public.gate_answers where submission_id in (select s.id from public.task_submissions s where s.user_id = any (demo));
   delete from public.task_submissions where user_id = any (demo);
   delete from public.reviews
@@ -84,6 +87,8 @@ begin
   delete from auth.users where id = any (demo);
 
   alter table public.profiles enable trigger a_audit;
+  alter table public.template_exclusions enable trigger z_exclusions_resync;
+  alter table public.template_exclusions enable trigger a_audit;
   alter table public.template_assignments enable trigger z_assignments_resync;
   alter table public.template_assignments enable trigger a_audit;
   alter table public.task_item_reviews enable trigger a_audit;

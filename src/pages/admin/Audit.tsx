@@ -13,7 +13,7 @@ export const ACTION_LABEL: Record<string, string> = {
   teste_solicitado: 'Teste solicitado', teste_aprovado: 'Solicitação aprovada', teste_reprovado: 'Solicitação reprovada', teste_reenviado: 'Solicitação reenviada',
 }
 const ENTITY_LABEL: Record<string, string> = {
-  task_instances: 'Tarefa', reviews: 'Revisão', activity_templates: 'Modelo', template_assignments: 'Atribuição',
+  task_instances: 'Tarefa', reviews: 'Revisão', activity_templates: 'Modelo', template_assignments: 'Atribuição', template_exclusions: 'Exclusão de atividade',
   profiles: 'Usuário', settings: 'Parâmetro', holidays: 'Feriado', task_steps: 'Etapa', task_item_reviews: 'Aprovação de teste', test_requests: 'Solicitação de teste', useful_links: 'Link',
 }
 
