@@ -105,7 +105,7 @@ A função `generate_tasks(de, até)` cria as tarefas. Ela é **idempotente**: a
 ```bash
 npx supabase login
 npx supabase link --project-ref SEU_REF
-npx supabase db push
+npx supabase db push --remote   # CLI v3: sem --remote o alvo é o banco local
 ```
 
 ### 2. Autenticação

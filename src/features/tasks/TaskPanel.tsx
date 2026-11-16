@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Check, Clock, Lock, OctagonAlert, RotateCcw, X } from 'lucide-react'
 import {
   Button, cx, ErrorNote, FormField, FullPage, ReviewLabel, Segmented, Spinner, StatusLabel, Textarea,
@@ -6,7 +7,7 @@ import {
 import { useToast } from '@/components/ui/toast'
 import {
   stepCounts, useItemReviews, useRecordFollowup, useResubmitItem, useReviews, useSaveDraft, useSetStep, useSettings, useSteps, useSubmissions, useSubmitTask,
-  useTask, useTasks, useTextContext,
+  useTask, useTasks, useTextContext, type Dashboard,
 } from '@/data/queries'
 import { sequenceStates } from '@/lib/sequence'
 import { ITEM_STATE_LABEL, itemStatus, reviewableGroups, type ItemState } from '@/lib/itemReviews'
@@ -40,8 +41,16 @@ export function TaskPanel({ taskId, onClose, onNavigate }: {
 
 /** Estado de sequência (cadeado, posição) desta atividade entre as do mesmo período. */
 function useBlock(task: TaskInstance) {
-  const q = useTasks({ userId: task.user_id, from: task.ref_date, to: task.ref_date })
-  const group = (q.data ?? []).filter((t) => t.period_key === task.period_key
+  // A tela "Hoje" já tem as tarefas do analista: reaproveita em vez de buscar de novo.
+  const qc = useQueryClient()
+  const cached = new Map<string, TaskInstance>()
+  for (const [, d] of qc.getQueriesData<Dashboard>({ queryKey: ['tasks', 'dashboard', task.user_id] })) {
+    for (const t of d?.tasks ?? []) cached.set(t.id, t)
+  }
+  const inCache = cached.has(task.id)
+  const q = useTasks({ userId: task.user_id, from: task.ref_date, to: task.ref_date, enabled: !inCache })
+  const source = inCache ? [...cached.values()] : q.data ?? []
+  const group = source.filter((t) => t.period_key === task.period_key
     && t.template_snapshot.frequency === task.template_snapshot.frequency)
   return sequenceStates(group, new Map()).find((b) => b.task.id === task.id)
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
@@ -73,6 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'PASSWORD_RECOVERY') setRecovery(true)
       if (event === 'SIGNED_IN' && readCachedProfile()?.id && readCachedProfile()?.id !== s?.user.id) forgetCachedData()
       setSession(s)
+      // Renovação do token (a cada hora) não muda o perfil: não busca de novo.
+      if (event === 'TOKEN_REFRESHED') return
       // Evita chamar o Supabase dentro do callback (deadlock conhecido do auth-js).
       setTimeout(() => { void loadProfile(s) }, 0)
     })
@@ -80,12 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const value: AuthState = {
+  // Valor estável: quem usa useAuth() só redesenha quando algo do login muda de fato.
+  const value = useMemo<AuthState>(() => ({
     session, profile, loading, recovery,
     clearRecovery: () => setRecovery(false),
     signOut: async () => { await supabase.auth.signOut(); forgetCachedData(); setProfile(null) },
     reloadProfile: () => loadProfile(session),
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [session, profile, loading, recovery])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

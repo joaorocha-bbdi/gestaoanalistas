@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import { useNow } from '@/lib/hooks'
 import { Lock, RotateCcw } from 'lucide-react'
 import { cx, StatusLabel } from '@/components/ui'
 import { effectiveStatus, isCompleted } from '@/lib/status'
@@ -10,13 +11,13 @@ import { Plate, plateState } from './Plate'
 /** Uma linha do checklist: placa numerada, bloco ou marco, progresso e situação. */
 export const TaskRow = forwardRef<HTMLButtonElement, {
   task: TaskInstance
-  now: number
   selected?: boolean
   showDate?: boolean
   block?: BlockState
   onOpen: () => void
   onFocus?: () => void
-}>(function TaskRow({ task, now, selected, showDate, block, onOpen, onFocus }, ref) {
+}>(function TaskRow({ task, selected, showDate, block, onOpen, onFocus }, ref) {
+  const now = useNow()
   const s = task.template_snapshot
   const st = effectiveStatus(task, now)
   const done = isCompleted(task.status)

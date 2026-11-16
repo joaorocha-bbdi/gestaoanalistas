@@ -9,6 +9,7 @@ import App from './App'
 import './index.css'
 
 export const CACHE_KEY = 'rotina-cache'
+const NOT_PERSISTED = new Set(['facts', 'audit', 'refresh_tasks', 'tests_queue', 'item_reviews'])
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,11 +38,14 @@ createRoot(document.getElementById('root')!).render(
       persistOptions={{
         persister,
         maxAge: 24 * 60 * 60_000,
-        buster: 'v1',
+        // v2: caches antigos (com métricas) são descartados.
+        buster: 'v2',
         dehydrateOptions: {
-          // Não guarda auditoria (volume grande) nem a geração de tarefas.
+          // Só o que abre a tela na hora. Fica de fora o que é grande ou muda o tempo todo:
+          // métricas (milhares de linhas, estouram os ~5 MB do localStorage), auditoria,
+          // filas do gestor e a geração de tarefas.
           shouldDehydrateQuery: (q) => q.state.status === 'success'
-            && !['audit', 'refresh_tasks'].includes(String(q.queryKey[0])),
+            && !NOT_PERSISTED.has(String(q.queryKey[0])),
         },
       }}
     >

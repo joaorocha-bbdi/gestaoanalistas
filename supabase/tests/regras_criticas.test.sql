@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(85);
+select plan(91);
 
 -- Os testes rodam em qualquer dia: durante o teste, todos os dias contam como expediente.
 update settings set value = '[1,2,3,4,5,6,7]' where key = 'dias_uteis';
@@ -288,6 +288,40 @@ select throws_ok($$select set_step('cccccccc-0000-4000-a000-000000000011', 0, fa
 reset role;
 update settings set value = '[1,2,3,4,5,6,7]' where key = 'dias_uteis';
 select is(monthly_due('2026-01-15'), '2026-01-31'::date, 'mensal vence no último dia útil do mês');
+
+-- Visibilidade por analista: frequências e exclusões ---------------------
+select generate_tasks(local_today(), local_today() + 14);
+update profiles set frequencies = '{diaria}' where id = 'aaaaaaaa-0000-4000-a000-000000000002';
+select is((select count(*)::int from task_instances ti join activity_templates t on t.id = ti.template_id
+            where ti.user_id = 'aaaaaaaa-0000-4000-a000-000000000002' and ti.ref_date >= local_today()
+              and t.frequency <> 'diaria' and ti.status <> 'pausada'), 0,
+  'só diárias: semanais e mensais futuras saem da lista do analista');
+select ok((select count(*) > 0 from task_instances ti join activity_templates t on t.id = ti.template_id
+            where ti.user_id = 'aaaaaaaa-0000-4000-a000-000000000002' and ti.ref_date >= local_today()
+              and t.frequency = 'diaria' and ti.status <> 'pausada'),
+  'só diárias: as diárias continuam');
+update profiles set frequencies = '{diaria,semanal,mensal}' where id = 'aaaaaaaa-0000-4000-a000-000000000002';
+select generate_tasks(local_today(), local_today() + 14);
+select ok((select count(*) > 0 from task_instances ti join activity_templates t on t.id = ti.template_id
+            where ti.user_id = 'aaaaaaaa-0000-4000-a000-000000000002' and ti.ref_date >= local_today()
+              and t.frequency = 'semanal' and ti.status <> 'pausada'),
+  'devolver a frequência traz as semanais de volta');
+insert into template_exclusions (template_id, user_id)
+  values ((select id from activity_templates where code = 'D1'), 'aaaaaaaa-0000-4000-a000-000000000002');
+select is((select count(*)::int from task_instances ti
+            where ti.user_id = 'aaaaaaaa-0000-4000-a000-000000000002' and ti.ref_date >= local_today()
+              and ti.template_id = (select id from activity_templates where code = 'D1') and ti.status <> 'pausada'), 0,
+  'atividade excluída some só para aquele analista');
+select ok((select count(*) > 0 from task_instances ti
+            where ti.user_id = 'aaaaaaaa-0000-4000-a000-000000000001' and ti.ref_date >= local_today()
+              and ti.template_id = (select id from activity_templates where code = 'D1')),
+  'os outros analistas continuam com a atividade excluída');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-a000-000000000002","role":"authenticated"}', true);
+delete from template_exclusions where user_id = 'aaaaaaaa-0000-4000-a000-000000000002';
+reset role;
+select is((select count(*)::int from template_exclusions where user_id = 'aaaaaaaa-0000-4000-a000-000000000002'), 1,
+  'analista não consegue remover a própria exclusão');
 
 -- Nenhum texto fala mais em "admin master"
 select is((select count(*)::int from activity_templates where (coalesce(description,'') || instructions::text || fields::text) ~* 'admin master'), 0,

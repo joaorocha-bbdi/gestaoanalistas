@@ -41,6 +41,8 @@ export interface Profile {
   email: string
   role: Role
   active: boolean
+  /** Frequências de atividade que o analista recebe. */
+  frequencies: Frequency[]
   created_at: string
 }
 

@@ -6,13 +6,43 @@ import {
 } from '@/components/ui'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/auth/AuthProvider'
-import { useAssignments, useProfiles, useTemplates } from '@/data/queries'
+import { useAssignments, useExclusions, useProfiles, useTemplates } from '@/data/queries'
+import { FREQ_LABEL } from '@/features/tasks/taskText'
 import { fmtDay, localDate } from '@/lib/dates'
 import { errorMessage } from '@/lib/status'
 import { supabase } from '@/lib/supabase'
-import type { Profile, Role } from '@/lib/types'
+import type { ActivityTemplate, Frequency, Profile, Role } from '@/lib/types'
 
 const ROLE_LABEL: Record<Role, string> = { analista: 'Analista', admin: 'Gestor' }
+const FREQS: Frequency[] = ['diaria', 'semanal', 'mensal']
+const FREQ_PLURAL: Record<Frequency, string> = { diaria: 'diárias', semanal: 'semanais', mensal: 'mensais' }
+
+type Pair = { template_id: string; user_id: string }
+type Run = (label: string, fn: () => PromiseLike<{ error: unknown }>, ok: string) => Promise<boolean>
+
+const freqsOf = (p: Profile) => p.frequencies ?? FREQS
+const assigned = (t: ActivityTemplate, p: Profile, assignments: Pair[]) =>
+  t.assign_all || assignments.some((a) => a.template_id === t.id && a.user_id === p.id)
+
+/** O modelo aparece para o analista? Mesma regra de public.template_applies no banco. */
+function applies(t: ActivityTemplate, p: Profile, assignments: Pair[], exclusions: Pair[]) {
+  if (!freqsOf(p).includes(t.frequency)) return false
+  if (exclusions.some((e) => e.template_id === t.id && e.user_id === p.id)) return false
+  return assigned(t, p, assignments)
+}
+
+/** Resumo para a tabela: "Todas", "Só diárias", "Diárias e semanais · 1 oculta". */
+function visibilitySummary(p: Profile, templates: ActivityTemplate[], assignments: Pair[], exclusions: Pair[]) {
+  const freqs = FREQS.filter((f) => freqsOf(p).includes(f))
+  if (freqs.length === 0) return 'Nenhuma'
+  const hidden = templates.filter((t) => freqs.includes(t.frequency) && assigned(t, p, assignments)
+    && !applies(t, p, assignments, exclusions)).length
+  const words = freqs.map((f) => FREQ_PLURAL[f])
+  const base = freqs.length === FREQS.length ? 'Todas'
+    : freqs.length === 1 ? `Só ${words[0]}`
+    : words.join(' e ').replace(/^./, (c) => c.toUpperCase())
+  return hidden ? `${base} · ${hidden} oculta${hidden === 1 ? '' : 's'}` : base
+}
 
 /**
  * Logins e papéis. O papel é a coluna profiles.role (user_role) no banco:
@@ -20,16 +50,20 @@ const ROLE_LABEL: Record<Role, string> = { analista: 'Analista', admin: 'Gestor'
  */
 export default function Users() {
   const profiles = useProfiles()
+  const templates = useTemplates()
+  const assignments = useAssignments()
+  const exclusions = useExclusions()
   const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<Profile | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [showInactive, setShowInactive] = useState(false)
   const list = (profiles.data ?? []).filter((p) => showInactive || p.active)
+  const editing = profiles.data?.find((p) => p.id === editingId) ?? null
 
   return (
     <>
       <PageHeader
         title="Usuários e acessos"
-        meta="Crie os logins e defina o papel de cada pessoa. Desativar bloqueia o login e preserva todo o histórico."
+        meta="Crie os logins, defina o papel de cada pessoa e quais atividades aparecem para cada analista. Desativar bloqueia o login e preserva todo o histórico."
         actions={<Button variant="primary" icon={<UserPlus className="size-4" />} onClick={() => setCreating(true)}>Novo usuário</Button>}
       >
         <Checkbox label="Mostrar inativos" checked={showInactive} onChange={setShowInactive} />
@@ -37,23 +71,29 @@ export default function Users() {
       <ErrorNote error={profiles.error} />
       {profiles.isLoading ? <Skeleton className="h-48" /> : (
         <div className={table.wrap}>
-          <table className={cx(table.table, 'min-w-[640px]')}>
+          <table className={cx(table.table, 'min-w-[760px]')}>
             <thead>
               <tr>
                 <th className={table.th}>Nome</th>
                 <th className={table.th}>E-mail (login)</th>
                 <th className={table.th}>Papel</th>
+                <th className={table.th}>Atividades</th>
                 <th className={table.th}>Situação</th>
                 <th className={table.th}>Desde</th>
               </tr>
             </thead>
             <tbody>
               {list.map((p) => (
-                <tr key={p.id} tabIndex={0} className={table.trClick} onClick={() => setEditing(p)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') setEditing(p) }}>
+                <tr key={p.id} tabIndex={0} className={table.trClick} onClick={() => setEditingId(p.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') setEditingId(p.id) }}>
                   <td className={cx(table.td, 'font-medium', !p.active && 'text-muted')}>{p.full_name}</td>
                   <td className={cx(table.td, 'text-muted')}>{p.email}</td>
                   <td className={table.td}>{ROLE_LABEL[p.role]}</td>
+                  <td className={cx(table.td, 'text-sm', p.role !== 'analista' && 'text-faint')}>
+                    {p.role === 'analista'
+                      ? visibilitySummary(p, templates.data ?? [], assignments.data ?? [], exclusions.data ?? [])
+                      : '—'}
+                  </td>
                   <td className={table.td}>
                     <span className="inline-flex items-center gap-1.5 text-sm">
                       <span className={cx('size-1.5 rounded-full', p.active ? 'bg-ok' : 'bg-faint')} aria-hidden />
@@ -68,7 +108,7 @@ export default function Users() {
         </div>
       )}
       <CreateDialog open={creating} onClose={() => setCreating(false)} />
-      {editing && <EditDialog profile={editing} onClose={() => setEditing(null)} />}
+      {editing && <EditDialog key={editing.id} profile={editing} onClose={() => setEditingId(null)} />}
     </>
   )
 }
@@ -120,24 +160,23 @@ function EditDialog({ profile, onClose }: { profile: Profile; onClose: () => voi
   const qc = useQueryClient()
   const toast = useToast()
   const { profile: me } = useAuth()
-  const templates = useTemplates()
-  const assignments = useAssignments()
   const [name, setName] = useState(profile.full_name)
   const [role, setRole] = useState<Role>(profile.role)
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const self = me?.id === profile.id
-  const specific = (templates.data ?? []).filter((t) => !t.assign_all)
-  const mine = new Set((assignments.data ?? []).filter((a) => a.user_id === profile.id).map((a) => a.template_id))
 
-  async function run(label: string, fn: () => PromiseLike<{ error: unknown }>, ok: string) {
+  const run: Run = async (label, fn, ok) => {
     setBusy(label); setError(null)
     const { error } = await fn()
+    if (error) { setBusy(null); setError(errorMessage(error)); return false }
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['profiles'] }),
+      qc.invalidateQueries({ queryKey: ['assignments'] }),
+      qc.invalidateQueries({ queryKey: ['exclusions'] }),
+    ])
     setBusy(null)
-    if (error) { setError(errorMessage(error)); return false }
-    await qc.invalidateQueries({ queryKey: ['profiles'] })
-    await qc.invalidateQueries({ queryKey: ['assignments'] })
     toast(ok)
     return true
   }
@@ -161,19 +200,7 @@ function EditDialog({ profile, onClose }: { profile: Profile; onClose: () => voi
             options={[{ value: 'analista', label: 'Analista' }, { value: 'admin', label: 'Gestor' }]} />
         </FormField>
 
-        {profile.role === 'analista' && specific.length > 0 && (
-          <FormField label="Atividades com atribuição específica" hint="As demais valem para todos os analistas.">
-            <div className="space-y-2">
-              {specific.map((t) => (
-                <Checkbox key={t.id} label={`${t.code ? t.code + ' · ' : ''}${t.name}`} checked={mine.has(t.id)} disabled={busy !== null}
-                  onChange={(v) => void run('atribuir',
-                    () => v ? supabase.from('template_assignments').insert({ template_id: t.id, user_id: profile.id })
-                      : supabase.from('template_assignments').delete().eq('template_id', t.id).eq('user_id', profile.id),
-                    v ? 'Atividade atribuída.' : 'Atribuição removida.')} />
-              ))}
-            </div>
-          </FormField>
-        )}
+        {profile.role === 'analista' && <VisibilityEditor profile={profile} busy={busy !== null} run={run} />}
 
         <div className="space-y-3 border-t border-line pt-4">
           <p className="text-sm font-medium">Acesso</p>
@@ -200,5 +227,105 @@ function EditDialog({ profile, onClose }: { profile: Profile; onClose: () => voi
         </div>
       </div>
     </Dialog>
+  )
+}
+
+/**
+ * O que aparece para o analista: liga e desliga frequências inteiras
+ * (ex.: só as diárias) e, dentro delas, cada atividade.
+ * Atividade "para todos" desmarcada vira exclusão; a de atribuição específica, atribuição.
+ */
+function VisibilityEditor({ profile, busy, run }: { profile: Profile; busy: boolean; run: Run }) {
+  const templates = useTemplates()
+  const assignments = useAssignments()
+  const exclusions = useExclusions()
+  const freqs = freqsOf(profile)
+  const all = templates.data ?? []
+  const asg = assignments.data ?? []
+  const exc = exclusions.data ?? []
+
+  const setFreqs = (next: Frequency[]) => run('frequencia',
+    () => supabase.from('profiles').update({ frequencies: FREQS.filter((f) => next.includes(f)) }).eq('id', profile.id),
+    next.length === 0 ? 'Nenhuma atividade vai aparecer para este analista.' : 'Frequências atualizadas.')
+
+  const toggle = (t: ActivityTemplate, on: boolean) => {
+    const excluded = exc.some((e) => e.template_id === t.id && e.user_id === profile.id)
+    return run('atividade', () => {
+      // Religar: tira a exclusão (se houver) e, se for específica, atribui.
+      if (on) {
+        if (excluded) return supabase.from('template_exclusions').delete().eq('template_id', t.id).eq('user_id', profile.id)
+        return supabase.from('template_assignments').insert({ template_id: t.id, user_id: profile.id })
+      }
+      return t.assign_all
+        ? supabase.from('template_exclusions').insert({ template_id: t.id, user_id: profile.id })
+        : supabase.from('template_assignments').delete().eq('template_id', t.id).eq('user_id', profile.id)
+    }, on ? `${t.name} volta a aparecer.` : `${t.name} não aparece mais para ${profile.full_name}.`)
+  }
+
+  const presets: { label: string; value: Frequency[] }[] = [
+    { label: 'Todas', value: FREQS },
+    { label: 'Só diárias', value: ['diaria'] },
+    { label: 'Só semanais', value: ['semanal'] },
+    { label: 'Só mensais', value: ['mensal'] },
+  ]
+  const same = (a: Frequency[], b: Frequency[]) => a.length === b.length && a.every((x) => b.includes(x))
+
+  return (
+    <div className="space-y-4 border-t border-line pt-4">
+      <div>
+        <p className="text-sm font-medium">Atividades que aparecem</p>
+        <p className="text-sm text-muted">Vale de hoje em diante. Tarefas já começadas ficam pausadas e voltam se a atividade for religada.</p>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Atalhos de frequência">
+        {presets.map((p) => {
+          const active = same(freqs, p.value)
+          return (
+            <button key={p.label} type="button" disabled={busy || active} aria-pressed={active}
+              onClick={() => void setFreqs(p.value)}
+              className={cx('h-8 rounded border px-3 text-sm transition-colors',
+                active ? 'border-ink bg-ink font-medium text-surface' : 'border-line-strong text-muted hover:bg-hover hover:text-ink',
+                busy && !active && 'opacity-60')}>
+              {p.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {templates.isLoading || assignments.isLoading || exclusions.isLoading ? <Skeleton className="h-32" /> : (
+        <div className="space-y-3">
+          {FREQS.map((f) => {
+            const on = freqs.includes(f)
+            const list = all.filter((t) => t.frequency === f)
+            return (
+              <fieldset key={f} className="overflow-hidden rounded border border-line">
+                <legend className="sr-only">{FREQ_LABEL[f]}</legend>
+                <div className="flex items-center justify-between gap-2 border-b border-line bg-subtle/60 px-3 py-2">
+                  <Checkbox label={<span className="font-medium capitalize">{FREQ_PLURAL[f]}</span>} checked={on} disabled={busy}
+                    onChange={(v) => void setFreqs(v ? [...freqs, f] : freqs.filter((x) => x !== f))} />
+                  <span className="text-xs text-muted tnum">
+                    {on ? `${list.filter((t) => applies(t, profile, asg, exc)).length} de ${list.length}` : 'desligadas'}
+                  </span>
+                </div>
+                {list.length === 0
+                  ? <p className="px-3 py-2 text-sm text-faint">Nenhuma atividade {FREQ_LABEL[f].toLowerCase()} cadastrada.</p>
+                  : (
+                    <div className={cx('space-y-2 px-3 py-2.5', !on && 'opacity-50')}>
+                      {list.map((t) => (
+                        <Checkbox key={t.id}
+                          label={`${t.code ? t.code + ' · ' : ''}${t.name}`}
+                          hint={[!t.assign_all && 'atribuição específica', t.paused && 'modelo pausado'].filter(Boolean).join(' · ') || undefined}
+                          checked={on && applies(t, profile, asg, exc)}
+                          disabled={busy || !on}
+                          onChange={(v) => void toggle(t, v)} />
+                      ))}
+                    </div>
+                  )}
+              </fieldset>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }

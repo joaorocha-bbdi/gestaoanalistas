@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 const isTyping = (el: EventTarget | null) => {
   const t = el as HTMLElement | null
@@ -31,14 +31,29 @@ export function useHotkeys(map: Record<string, (e: KeyboardEvent) => void>, enab
   }, [enabled])
 }
 
-/** Re-renderiza a cada `ms` para manter "vence em…" atualizado. */
-export function useNow(ms = 30_000) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), ms)
-    return () => clearInterval(id)
-  }, [ms])
-  return now
+// Relógio único do app: um só timer, compartilhado por quem mostra "vence em…".
+const TICK = 30_000
+let clockNow = Date.now()
+let clockTimer: ReturnType<typeof setInterval> | undefined
+const clockSubs = new Set<() => void>()
+function subscribeClock(cb: () => void) {
+  clockSubs.add(cb)
+  if (!clockTimer) {
+    clockNow = Date.now()
+    clockTimer = setInterval(() => { clockNow = Date.now(); clockSubs.forEach((f) => f()) }, TICK)
+  }
+  return () => {
+    clockSubs.delete(cb)
+    if (!clockSubs.size && clockTimer) { clearInterval(clockTimer); clockTimer = undefined }
+  }
+}
+
+/**
+ * Hora atual, atualizada a cada 30 s. Use no menor componente que mostra
+ * prazo (linha, placa): assim só ele redesenha, não a página inteira.
+ */
+export function useNow() {
+  return useSyncExternalStore(subscribeClock, () => clockNow)
 }
 
 export type Theme = 'claro' | 'escuro' | 'sistema'

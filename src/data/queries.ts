@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { must, supabase } from '@/lib/supabase'
 import { DEFAULT_WEIGHTS } from '@/lib/metrics'
@@ -33,14 +34,17 @@ export function useSettingRows() {
 
 export function useSettings(): Settings {
   const { data } = useSettingRows()
-  const s: Settings = { ...DEFAULT_SETTINGS }
-  for (const r of data ?? []) s[r.key] = r.value
-  return s
+  // Mesmo objeto enquanto os parâmetros não mudam (não força redesenho de quem recebe).
+  return useMemo(() => {
+    const s: Settings = { ...DEFAULT_SETTINGS }
+    for (const r of data ?? []) s[r.key] = r.value
+    return s
+  }, [data])
 }
 
 export function useTextContext() {
   const s = useSettings()
-  return { params: s.gate_params, concorrente: s.rotulo_concorrente }
+  return useMemo(() => ({ params: s.gate_params, concorrente: s.rotulo_concorrente }), [s])
 }
 
 export function useSaveSetting() {
@@ -148,6 +152,7 @@ export function useSetStep(who?: { id: string; name: string }) {
   const qc = useQueryClient()
   type Snapshot = [readonly unknown[], unknown][]
   return useMutation({
+    mutationKey: ['set_step'],
     mutationFn: async (a: { taskId: string; index: number; checked: boolean }) =>
       must(await supabase.rpc('set_step', { p_task: a.taskId, p_index: a.index, p_checked: a.checked })) as TaskInstance,
     onMutate: async (a) => {
@@ -175,6 +180,9 @@ export function useSetStep(who?: { id: string; name: string }) {
       qc.setQueryData(['task', t.id], t)
     },
     onSettled: (_t, _e, a) => {
+      // Cliques em sequência: só a última marcação recarrega. Uma recarga no meio
+      // traria o banco sem as marcações ainda em envio e a caixa "piscaria".
+      if (qc.isMutating({ mutationKey: ['set_step'] }) > 1) return
       void qc.invalidateQueries({ queryKey: ['steps', a.taskId] })
       void qc.invalidateQueries({ queryKey: ['tasks'] })
       void qc.invalidateQueries({ queryKey: ['facts'], refetchType: 'none' })
@@ -355,6 +363,13 @@ export function useAssignments() {
   return useQuery({
     queryKey: ['assignments'],
     queryFn: async () => must(await supabase.from('template_assignments').select('*')) as { template_id: string; user_id: string }[],
+  })
+}
+
+export function useExclusions() {
+  return useQuery({
+    queryKey: ['exclusions'],
+    queryFn: async () => must(await supabase.from('template_exclusions').select('template_id, user_id')) as { template_id: string; user_id: string }[],
   })
 }
 

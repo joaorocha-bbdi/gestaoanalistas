@@ -14,9 +14,9 @@
     "sql:bundle": "node scripts/bundle-sql.mjs",
     "db:login": "supabase login",
     "db:link": "supabase link --project-ref czhtgiwbobrxfxizpddk",
-    "db:status": "supabase migration list",
-    "db:push": "npm run test:db && supabase db push",
-    "db:marcar-aplicadas": "supabase migration repair --status applied 20261113000100 20261113000200 20261113000300 20261113000400 20261113000500 20261113000600 20261113000700 20261113000800 20261113000900 20261113001000 20261113001100 20261113001200 20261113001300 20261113001400 20261113001500 20261113001600"
+    "db:status": "supabase migration list --remote",
+    "db:push": "npm run test:db && supabase db push --remote",
+    "db:marcar-aplicadas": "supabase migration repair --remote --status applied 20261113000100 20261113000200 20261113000300 20261113000400 20261113000500 20261113000600 20261113000700 20261113000800 20261113000900 20261113001000 20261113001100 20261113001200 20261113001300 20261113001400 20261113001500 20261113001600 20261113001700"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.3.0",
