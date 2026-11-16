@@ -41,7 +41,7 @@ export default function SettingsPage() {
         <Workdays />
       </Section>
 
-      <Section title="Feriados e dias sem expediente" meta="não geram tarefas diárias">
+      <Section title="Feriados e dias sem expediente" meta="não geram tarefas nem contam ponto">
         <Holidays />
       </Section>
     </>

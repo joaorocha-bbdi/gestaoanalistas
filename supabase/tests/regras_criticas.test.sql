@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(91);
+select plan(93);
 
 -- Os testes rodam em qualquer dia: durante o teste, todos os dias contam como expediente.
 update settings set value = '[1,2,3,4,5,6,7]' where key = 'dias_uteis';
@@ -333,6 +333,16 @@ select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.
 -- Só os blocos pedidos: diário D1, D2, D3, D5; semanal S1; mensal M1, M2, M3
 select is((select string_agg(code, ',' order by sort_order) from activity_templates),
   'D1,D2,D3,D5,S1,M1,M2,M3', 'existem só os blocos e marcos pedidos, na ordem');
+
+-- Feriado não conta ponto: tarefa (mesmo não feita) num dia de feriado sai das métricas
+insert into task_instances (id, template_id, user_id, period_key, ref_date, period_start, period_end, due_at, weight, status, template_snapshot)
+values ('eeeeeeee-0000-4000-a000-000000000001', (select id from activity_templates where code = 'D1'),
+        'aaaaaaaa-0000-4000-a000-000000000001', 'feriado-teste', '2020-01-15', '2020-01-15', '2020-01-15',
+        local_due('2020-01-15', '11:00'), 1, 'nao_feita', '{"code":"D1","name":"Teste feriado","frequency":"diaria"}'::jsonb);
+insert into holidays (day, label) values ('2020-01-15', 'Feriado de teste');
+select is((select count(*)::int from v_task_facts where ref_date = '2020-01-15'), 0, 'dia de feriado não entra nas métricas');
+delete from holidays where day = '2020-01-15';
+select is((select count(*)::int from v_task_facts where ref_date = '2020-01-15'), 1, 'removido o feriado, o dia volta a contar');
 
 select * from finish();
 rollback;
