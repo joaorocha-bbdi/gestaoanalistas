@@ -192,7 +192,7 @@ export const METRIC_DOCS = {
   eficiencia: {
     label: 'Eficiência',
     formula: 'Atividades concluídas ÷ atividades esperadas no período × 100%.',
-    detail: 'Esperada = já venceu ou já foi concluída. Concluída com atraso também conta como feita; o atraso aparece em Pontualidade.',
+    detail: 'Esperada = já venceu ou já foi concluída. Concluída com atraso também conta como feita; o atraso aparece em Pontualidade. Dias de feriado não entram.',
   },
   sequencia: {
     label: 'Sequência',

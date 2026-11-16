@@ -59,7 +59,7 @@ v_task_facts (view, security_invoker) → base de TODAS as métricas
 
 - **Snapshot por tarefa:** campos, gates e peso são copiados para a tarefa no dia em que ela é gerada. Editar um modelo não muda o passado.
 - **Tentativas de envio:** cada envio fica em `task_submissions`, inclusive os barrados pelo gate. A taxa de bloqueio sai dali.
-- **Métricas:** são calculadas em `src/lib/metrics.ts` a partir das linhas de `v_task_facts`. Não existe contador guardado, então qualquer número da tela pode ser refeito a partir dos dados brutos. Exporte "Tarefas" em CSV para conferir.
+- **Métricas:** são calculadas em `src/lib/metrics.ts` a partir das linhas de `v_task_facts`. Não existe contador guardado, então qualquer número da tela pode ser refeito a partir dos dados brutos. Exporte "Tarefas" em CSV para conferir. Tarefas com data de referência em feriado ficam fora da view: o dia não soma nem tira ponto, mesmo que o feriado seja cadastrado depois.
 
 ## Geração das tarefas
 
