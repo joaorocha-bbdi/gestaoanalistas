@@ -202,6 +202,9 @@ export interface AuditEntry {
 
 export interface Holiday { day: string; label: string }
 
+/** Dia desativado para um analista: as diárias do dia não contam nem aceitam registro. */
+export interface DayOff { id: string; user_id: string; day: string; reason: string | null; created_at: string }
+
 export interface EfficiencyWeights { conclusao: number; pontualidade: number; qualidade: number }
 
 export interface Settings {

@@ -36,8 +36,8 @@ export function StepsList({ steps, texts, done, editable, completed, pendingInde
         {completed
           ? 'Bloco concluído.'
           : done < total
-            ? `${done} de ${total} etapas marcadas. O bloco chega a 100% quando você envia o registro.`
-            : 'Todas as etapas marcadas. Falta enviar o registro para concluir (100%).'}
+            ? `${done} de ${total} etapas marcadas.`
+            : 'Todas as etapas marcadas. Envie o registro para concluir o bloco e liberar o próximo.'}
       </p>
 
       <ol className="divide-y divide-line border-y border-line">

@@ -18,7 +18,7 @@ export interface BlockState {
   blockedBy: string | null
   stepsDone: number
   stepsTotal: number
-  /** 0 a 1: (etapas marcadas + 1 se concluída) ÷ (etapas + 1). */
+  /** 0 a 1: etapas marcadas ÷ etapas (sem etapas: 1 se concluída). */
   progress: number
   /** Próxima a fazer no seu grupo: primeira liberada e não concluída. */
   current: boolean
@@ -27,21 +27,28 @@ export interface BlockState {
 export const stepsTotalOf = (t: Pick<TaskInstance, 'template_snapshot'>) => t.template_snapshot.instructions?.length ?? 0
 
 /**
- * Progresso do bloco. 100% só depois do envio aceito: o envio conta como o
- * último ponto, então marcar todas as etapas dá n ÷ (n+1), nunca 100%.
+ * Pontos do bloco: cada etapa vale 1. Marcar todas as etapas já dá 100%.
+ * Bloco sem etapas vale 1 ponto, ganho quando é concluído.
  */
-export function blockProgress(stepsTotal: number, stepsDone: number, completed: boolean): number {
-  if (completed) return 1
-  return Math.min(Math.max(stepsDone, 0), stepsTotal) / (stepsTotal + 1)
+export function blockPoints(stepsTotal: number, stepsDone: number, completed: boolean): { done: number; total: number } {
+  const total = Math.max(stepsTotal, 1)
+  if (completed) return { done: total, total }
+  return { done: Math.min(Math.max(stepsDone, 0), stepsTotal), total }
 }
 
-/** Progresso agregado: pontos feitos ÷ pontos totais (cada etapa e cada envio valem 1 ponto). */
+/** Progresso do bloco: etapas marcadas ÷ etapas. */
+export function blockProgress(stepsTotal: number, stepsDone: number, completed: boolean): number {
+  const p = blockPoints(stepsTotal, stepsDone, completed)
+  return p.done / p.total
+}
+
+/** Progresso agregado: etapas marcadas ÷ etapas de todos os blocos. */
 export function dayProgress(blocks: Pick<BlockState, 'stepsDone' | 'stepsTotal' | 'task'>[]): number {
   let done = 0, total = 0
   for (const b of blocks) {
-    const completed = isCompleted(b.task.status)
-    total += b.stepsTotal + 1
-    done += completed ? b.stepsTotal + 1 : Math.min(b.stepsDone, b.stepsTotal)
+    const p = blockPoints(b.stepsTotal, b.stepsDone, isCompleted(b.task.status))
+    done += p.done
+    total += p.total
   }
   return total ? done / total : 0
 }

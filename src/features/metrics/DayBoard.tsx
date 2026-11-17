@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Check, Lock } from 'lucide-react'
+import { CalendarOff, Check, Lock, Undo2 } from 'lucide-react'
 import { Button, cx, Dialog, EmptyState, table } from '@/components/ui'
+import { useToast } from '@/components/ui/toast'
+import { useDaysOff, useSetDayOff } from '@/data/queries'
+import { DayOffDialog } from '@/features/daysoff/DaysOff'
 import { fmtDateTime, fmtDay, fmtDayOf } from '@/lib/dates'
-import { blockProgress } from '@/lib/sequence'
+import { blockPoints, blockProgress } from '@/lib/sequence'
 import { must, supabase } from '@/lib/supabase'
 import type { Payload, Profile, TaskFact } from '@/lib/types'
 
@@ -14,10 +17,20 @@ import type { Payload, Profile, TaskFact } from '@/lib/types'
 export function DayBoard({ analysts, facts, today, onOpen }: {
   analysts: Profile[]; facts: TaskFact[]; today: string; onOpen: (taskId: string) => void
 }) {
+  const toast = useToast()
+  const daysOffQ = useDaysOff({ from: today, to: today })
+  const setDayOff = useSetDayOff()
+  const [disabling, setDisabling] = useState<Profile | null>(null)
+  const offToday = new Map((daysOffQ.data ?? []).map((d) => [d.user_id, d]))
+
   const todays = facts.filter((f) => f.ref_date === today && f.frequency === 'diaria' && f.status !== 'pausada' && f.sequential)
   const columns = [...new Map(todays.map((f) => [f.template_id, { id: f.template_id, name: f.template_name, order: f.sort_order }])).values()]
     .sort((a, b) => a.order - b.order)
-  if (!columns.length) return <EmptyState title="Sem blocos hoje">Não há atividades diárias em sequência geradas para hoje.</EmptyState>
+  const anyOff = analysts.some((a) => offToday.has(a.id))
+  if (!columns.length && !anyOff) return <EmptyState title="Sem blocos hoje">Não há atividades diárias em sequência geradas para hoje.</EmptyState>
+
+  const reactivate = (a: Profile) => setDayOff.mutate({ userId: a.id, day: today, off: false },
+    { onSuccess: () => toast(`Dia de hoje reativado para ${a.full_name}.`) })
 
   return (
     <div className={table.wrap}>
@@ -31,6 +44,37 @@ export function DayBoard({ analysts, facts, today, onOpen }: {
         </thead>
         <tbody>
           {analysts.map((a) => {
+            const off = offToday.get(a.id)
+            const nameCell = (
+              <td className={cx(table.td, 'whitespace-nowrap')}>
+                <span className={cx('block text-md font-semibold', off && 'text-muted')}>{a.full_name}</span>
+                {off ? (
+                  <button type="button" disabled={setDayOff.isPending} onClick={() => reactivate(a)}
+                    className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted underline-offset-2 hover:text-ink hover:underline">
+                    <Undo2 className="size-3.5" aria-hidden />Reativar o dia
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setDisabling(a)}
+                    className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted underline-offset-2 hover:text-ink hover:underline">
+                    <CalendarOff className="size-3.5" aria-hidden />Desativar o dia
+                  </button>
+                )}
+              </td>
+            )
+            if (off) {
+              return (
+                <tr key={a.id} className={table.tr}>
+                  {nameCell}
+                  <td className={table.td} colSpan={Math.max(columns.length, 1)}>
+                    <span className="inline-flex items-center gap-1.5 text-sm text-muted">
+                      <CalendarOff className="size-4" aria-hidden />
+                      Dia desativado: as diárias de hoje não contam.{off.reason ? ` Motivo: ${off.reason}` : ''}
+                    </span>
+                  </td>
+                  <td className={cx(table.tdNum, 'text-muted')}>—</td>
+                </tr>
+              )
+            }
             const mine = todays.filter((f) => f.user_id === a.id)
             let blocked = false
             let points = 0, total = 0
@@ -39,14 +83,16 @@ export function DayBoard({ analysts, facts, today, onOpen }: {
               if (!f) return { c, f: undefined, locked: false }
               const locked = blocked && !f.completed
               if (!f.completed) blocked = true
-              points += f.completed ? f.steps_total + 1 : Math.min(f.steps_done, f.steps_total)
-              total += f.steps_total + 1
+              const p = blockPoints(f.steps_total, f.steps_done, f.completed)
+              points += p.done
+              total += p.total
               return { c, f, locked }
             })
             const day = total ? Math.round((points / total) * 100) : 0
             return (
               <tr key={a.id} className={table.tr}>
-                <td className={cx(table.td, 'whitespace-nowrap text-md font-semibold')}>{a.full_name}</td>
+                {nameCell}
+                {!columns.length && <td className={cx(table.td, 'text-faint')}>sem blocos hoje</td>}
                 {cells.map(({ c, f, locked }) => (
                   <td key={c.id} className={cx(table.td, 'min-w-44')}>
                     {!f ? <span className="text-faint">sem tarefa</span> : (
@@ -76,6 +122,7 @@ export function DayBoard({ analysts, facts, today, onOpen }: {
           })}
         </tbody>
       </table>
+      {disabling && <DayOffDialog analyst={disabling} day={today} onClose={() => setDisabling(null)} />}
     </div>
   )
 }
@@ -85,7 +132,7 @@ interface Analysis {
   ref_date: string
   submitted_at: string | null
   payload: Payload
-  user: { full_name: string } | null
+  user: { full_name: string; active?: boolean } | null
 }
 
 /** Análises que os analistas enviaram no check de produtos com giro (vão direto ao gestor). */
@@ -93,9 +140,11 @@ export function useProductAnalyses(limit = 6) {
   return useQuery({
     queryKey: ['analises', limit],
     queryFn: async () => must(await supabase.from('task_instances')
-      .select('id, ref_date, submitted_at, payload, user:profiles!user_id(full_name)')
+      .select('id, ref_date, submitted_at, payload, user:profiles!user_id(full_name, active)')
       .eq('template_snapshot->>code', 'D3').in('status', ['concluida_prazo', 'concluida_atraso'])
       .order('submitted_at', { ascending: false }).limit(limit)) as unknown as Analysis[],
+    // Usuário desativado não aparece para o gestor.
+    select: (rows) => rows.filter((r) => r.user?.active !== false),
   })
 }
 

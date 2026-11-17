@@ -7,6 +7,7 @@ import {
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/auth/AuthProvider'
 import { useAssignments, useExclusions, useProfiles, useTemplates } from '@/data/queries'
+import { DaysOffEditor } from '@/features/daysoff/DaysOff'
 import { FREQ_LABEL } from '@/features/tasks/taskText'
 import { fmtDay, localDate } from '@/lib/dates'
 import { errorMessage } from '@/lib/status'
@@ -63,7 +64,7 @@ export default function Users() {
     <>
       <PageHeader
         title="Usuários e acessos"
-        meta="Crie os logins, defina o papel de cada pessoa e quais atividades aparecem para cada analista. Desativar bloqueia o login e preserva todo o histórico."
+        meta="Crie os logins, defina o papel de cada pessoa e quais atividades aparecem para cada analista. Desativar bloqueia o login e tira a pessoa das métricas, guardando os registros."
         actions={<Button variant="primary" icon={<UserPlus className="size-4" />} onClick={() => setCreating(true)}>Novo usuário</Button>}
       >
         <Checkbox label="Mostrar inativos" checked={showInactive} onChange={setShowInactive} />
@@ -201,6 +202,7 @@ function EditDialog({ profile, onClose }: { profile: Profile; onClose: () => voi
         </FormField>
 
         {profile.role === 'analista' && <VisibilityEditor profile={profile} busy={busy !== null} run={run} />}
+        {profile.role === 'analista' && profile.active && <DaysOffEditor profile={profile} busy={busy !== null} />}
 
         <div className="space-y-3 border-t border-line pt-4">
           <p className="text-sm font-medium">Acesso</p>
@@ -218,12 +220,12 @@ function EditDialog({ profile, onClose }: { profile: Profile; onClose: () => voi
             <Button size="sm" variant={profile.active ? 'danger' : 'secondary'} loading={busy === 'ativo'}
               onClick={async () => {
                 if (await run('ativo', () => supabase.from('profiles').update({ active: !profile.active }).eq('id', profile.id),
-                  profile.active ? 'Usuário desativado. O histórico foi mantido.' : 'Usuário reativado.')) onClose()
+                  profile.active ? 'Usuário desativado e fora das métricas. Os registros foram guardados.' : 'Usuário reativado. O histórico volta a contar.')) onClose()
               }}>
               {profile.active ? 'Desativar login' : 'Reativar login'}
             </Button>
           )}
-          {profile.active && !self && <p className="text-xs text-muted">Ao desativar, o login fica bloqueado e as tarefas futuras saem do cálculo; as passadas continuam nas métricas.</p>}
+          {profile.active && !self && <p className="text-xs text-muted">Ao desativar, o login fica bloqueado e a pessoa sai de todas as métricas, inclusive do histórico. Os registros ficam guardados: se for reativada, tudo volta a contar.</p>}
         </div>
       </div>
     </Dialog>

@@ -35,7 +35,9 @@ Ferramenta interna para o gestor acompanhar, atividade por atividade, o que cada
 
 - **Etapas:** cada atividade tem etapas (as "instruções" do modelo). O analista marca **uma a uma, em ordem**: só a próxima pode ser marcada, e só a última marcada pode ser desmarcada. Cada marcação grava **data, horário e usuário** (`task_steps`) e entra na auditoria. Só o gestor vê o horário do registro, no painel da atividade, na Revisão e na Auditoria; o analista vê só a data.
 - **Sequência:** as atividades marcadas como "sequenciais" formam blocos (diário) ou marcos (semanal e mensal) em ordem. Cada período tem a sua sequência: cada atividade só libera quando a anterior do mesmo dia, semana ou mês estiver concluída, mesmo que com atraso. Quem garante é o banco (`task_lock_reason`), não a tela.
-- **Progresso (%):** `(etapas marcadas + 1 se o bloco foi enviado e aceito) ÷ (etapas + 1)`. Marcar todas as etapas dá `n ÷ (n+1)`; o bloco só chega a **100% depois do envio aceito**. O progresso do dia soma os pontos de todos os blocos.
+- **Progresso (%):** `etapas marcadas ÷ etapas`. Marcar todas as etapas dá **100%**; o envio continua necessário para concluir o bloco e liberar o próximo. Bloco sem etapas vale 1 ponto, ganho ao concluir. O progresso do dia soma as etapas de todos os blocos.
+- **Dia desativado:** em *Usuários e acessos*, o gestor desativa um dia para um analista (ex.: vai fazer outras atividades). As atividades **diárias** desse dia não aceitam registro e não contam nas métricas; semanais e mensais seguem normais. Reativado o dia, tudo volta a contar (tabela `user_days_off`).
+- **Usuário desativado:** sai de **todas** as métricas, inclusive o histórico, das filas do gestor e dos filtros. Reativado, o histórico volta a contar.
 - **Envio:** exige todas as etapas marcadas, os campos obrigatórios e as verificações (gates) satisfeitas.
 - **Frequências:** o painel do analista tem as abas Diário (4 blocos), Semanal (1 marco: pedido de compras) e Mensal (3 marcos: importação, pesquisa de mercado e testes). O mensal abre no dia 1 e vence no último dia do mês.
 - **Aprovação de testes:** no marco de testes do mês, cada referência leva a sua sugestão de teste. O gestor aprova ou reprova **cada referência de forma independente**, em *Aprovação de testes*. Aprovado: o analista vê "teste aprovado". Reprovado: vê o motivo e pode corrigir e reenviar só aquela referência.
@@ -59,7 +61,7 @@ v_task_facts (view, security_invoker) → base de TODAS as métricas
 
 - **Snapshot por tarefa:** campos, gates e peso são copiados para a tarefa no dia em que ela é gerada. Editar um modelo não muda o passado.
 - **Tentativas de envio:** cada envio fica em `task_submissions`, inclusive os barrados pelo gate. A taxa de bloqueio sai dali.
-- **Métricas:** são calculadas em `src/lib/metrics.ts` a partir das linhas de `v_task_facts`. Não existe contador guardado, então qualquer número da tela pode ser refeito a partir dos dados brutos. Exporte "Tarefas" em CSV para conferir. Tarefas com data de referência em feriado ficam fora da view: o dia não soma nem tira ponto, mesmo que o feriado seja cadastrado depois.
+- **Métricas:** são calculadas em `src/lib/metrics.ts` a partir das linhas de `v_task_facts`. Não existe contador guardado, então qualquer número da tela pode ser refeito a partir dos dados brutos. Exporte "Tarefas" em CSV para conferir. Tarefas com data de referência em feriado ficam fora da view: o dia não soma nem tira ponto, mesmo que o feriado seja cadastrado depois. O mesmo vale para as diárias de um dia desativado para o analista e para todas as tarefas de usuário desativado.
 
 ## Geração das tarefas
 

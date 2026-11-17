@@ -14,7 +14,7 @@ export const ACTION_LABEL: Record<string, string> = {
 }
 const ENTITY_LABEL: Record<string, string> = {
   task_instances: 'Tarefa', reviews: 'Revisão', activity_templates: 'Modelo', template_assignments: 'Atribuição', template_exclusions: 'Exclusão de atividade',
-  profiles: 'Usuário', settings: 'Parâmetro', holidays: 'Feriado', task_steps: 'Etapa', task_item_reviews: 'Aprovação de teste', test_requests: 'Solicitação de teste', useful_links: 'Link',
+  profiles: 'Usuário', settings: 'Parâmetro', holidays: 'Feriado', task_steps: 'Etapa', task_item_reviews: 'Aprovação de teste', test_requests: 'Solicitação de teste', useful_links: 'Link', user_days_off: 'Dia desativado',
 }
 
 export default function Audit() {
@@ -103,6 +103,7 @@ function describe(e: AuditEntry, name: (id: string | null) => string): string {
   if (e.entity === 'profiles') return String(r.full_name ?? '')
   if (e.entity === 'settings') return String(r.key ?? '')
   if (e.entity === 'holidays') return `${r.day} ${r.label ?? ''}`
+  if (e.entity === 'user_days_off') return `${name(r.user_id as string)} · ${r.day}${r.reason ? ' (' + r.reason + ')' : ''}`
   if (e.entity === 'test_requests') return `${r.sku}: ${r.status}${r.review_reason ? ' (' + r.review_reason + ')' : ''}`
   if (e.entity === 'useful_links') return String(r.name ?? '')
   if (e.entity === 'task_item_reviews') return `referência ${Number(r.item_index) + 1}: ${r.status}${r.reason ? ' (' + r.reason + ')' : ''}`
