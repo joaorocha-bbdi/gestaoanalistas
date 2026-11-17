@@ -4,7 +4,7 @@ import { must, supabase } from '@/lib/supabase'
 import { DEFAULT_WEIGHTS } from '@/lib/metrics'
 import { applyStepToggle, stepsByTask } from '@/lib/perf'
 import type {
-  ActivityTemplate, AuditEntry, Deviation, GateAnswer, Holiday, Payload, Profile, Review,
+  ActivityTemplate, AuditEntry, DayOff, Deviation, GateAnswer, Holiday, Payload, Profile, Review,
   ItemReview, Settings, Submission, TaskFact, TaskInstance, TaskStep,
 } from '@/lib/types'
 
@@ -60,6 +60,37 @@ export function useHolidays() {
   return useQuery({
     queryKey: ['holidays'],
     queryFn: async () => must(await supabase.from('holidays').select('*').order('day')) as Holiday[],
+  })
+}
+
+// ---------------------------------------------------------------------
+// Dias desativados por analista. RLS: gestor vê e altera todos; analista só lê os seus.
+// ---------------------------------------------------------------------
+export function useDaysOff(opts: { userId?: string; from?: string; to?: string; enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: ['days_off', opts.userId ?? 'todos', opts.from ?? '', opts.to ?? ''],
+    enabled: opts.enabled ?? true,
+    queryFn: async () => {
+      let q = supabase.from('user_days_off').select('*')
+      if (opts.userId) q = q.eq('user_id', opts.userId)
+      if (opts.from) q = q.gte('day', opts.from)
+      if (opts.to) q = q.lte('day', opts.to)
+      return must(await q.order('day', { ascending: false })) as DayOff[]
+    },
+  })
+}
+
+export function useSetDayOff() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (a: { userId: string; day: string; off: boolean; reason?: string | null }) => a.off
+      ? must(await supabase.from('user_days_off').upsert({ user_id: a.userId, day: a.day, reason: a.reason || null }, { onConflict: 'user_id,day' }).select())
+      : must(await supabase.from('user_days_off').delete().eq('user_id', a.userId).eq('day', a.day).select()),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['days_off'] })
+      void qc.invalidateQueries({ queryKey: ['facts'] })
+      void qc.invalidateQueries({ queryKey: ['audit'] })
+    },
   })
 }
 
@@ -266,10 +297,12 @@ export function useTestsQueue() {
   return useQuery({
     queryKey: ['tests_queue'],
     queryFn: async () => must(await supabase.from('task_instances')
-      .select('*, user:profiles!user_id(full_name)')
+      .select('*, user:profiles!user_id(full_name, active)')
       .in('status', ['concluida_prazo', 'concluida_atraso'])
       .eq('template_snapshot->>frequency', 'mensal')
-      .order('submitted_at', { ascending: false }).limit(60)) as unknown as (TaskInstance & { user: { full_name: string } | null })[],
+      .order('submitted_at', { ascending: false }).limit(60)) as unknown as (TaskInstance & { user: { full_name: string; active: boolean } | null })[],
+    // Usuário desativado sai das filas do gestor.
+    select: (rows) => rows.filter((r) => r.user?.active !== false),
   })
 }
 
@@ -434,8 +467,10 @@ export function useTestRequests() {
   return useQuery({
     queryKey: ['test_requests'],
     queryFn: async () => must(await supabase.from('test_requests')
-      .select('*, user:profiles!user_id(full_name)')
-      .order('created_at', { ascending: false })) as unknown as TR[],
+      .select('*, user:profiles!user_id(full_name, active)')
+      .order('created_at', { ascending: false })) as unknown as (TR & { user: { active?: boolean } | null })[],
+    // Usuário desativado sai das filas do gestor.
+    select: (rows) => rows.filter((r) => r.user?.active !== false) as TR[],
   })
 }
 

@@ -5,7 +5,7 @@
 --   · todos os logins que NÃO são gestor (role = 'admin'), com perfil e acesso
 --   · todas as tarefas e o que vem delas: etapas, envios, respostas das
 --     verificações, revisões, revisões por item e solicitações de teste
---   · atribuições e exclusões de atividade por analista
+--   · atribuições e exclusões de atividade por analista e dias desativados
 --   · todo o log de auditoria
 --
 -- MANTÉM
@@ -51,6 +51,7 @@ begin
   delete from public.task_instances;
   delete from public.template_assignments;
   delete from public.template_exclusions;
+  delete from public.user_days_off;
 
   update public.settings     set updated_by = null where updated_by = any (alvo);
   update public.useful_links set created_by = null where created_by = any (alvo);

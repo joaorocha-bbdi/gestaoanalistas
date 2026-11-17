@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(93);
+select plan(100);
 
 -- Os testes rodam em qualquer dia: durante o teste, todos os dias contam como expediente.
 update settings set value = '[1,2,3,4,5,6,7]' where key = 'dias_uteis';
@@ -343,6 +343,39 @@ insert into holidays (day, label) values ('2020-01-15', 'Feriado de teste');
 select is((select count(*)::int from v_task_facts where ref_date = '2020-01-15'), 0, 'dia de feriado não entra nas métricas');
 delete from holidays where day = '2020-01-15';
 select is((select count(*)::int from v_task_facts where ref_date = '2020-01-15'), 1, 'removido o feriado, o dia volta a contar');
+
+-- Dia desativado para o analista: diárias do dia saem das métricas e não aceitam registro
+insert into task_instances (id, template_id, user_id, period_key, ref_date, period_start, period_end, due_at, weight, status, template_snapshot)
+values ('eeeeeeee-0000-4000-a000-000000000002', (select id from activity_templates where code = 'D1'),
+        'aaaaaaaa-0000-4000-a000-000000000001', 'folga-teste', '2020-01-16', '2020-01-16', '2020-01-16',
+        local_due('2020-01-16', '11:00'), 1, 'nao_feita', '{"code":"D1","name":"Teste folga","frequency":"diaria"}'::jsonb),
+       ('eeeeeeee-0000-4000-a000-000000000003', (select id from activity_templates where code = 'S1'),
+        'aaaaaaaa-0000-4000-a000-000000000001', 'folga-teste-sem', '2020-01-16', '2020-01-13', '2020-01-17',
+        local_due('2020-01-16', '23:59:59'), 1, 'nao_feita', '{"code":"S1","name":"Teste folga semanal","frequency":"semanal"}'::jsonb),
+       ('eeeeeeee-0000-4000-a000-000000000004', (select id from activity_templates where code = 'D3'),
+        'aaaaaaaa-0000-4000-a000-000000000001', 'folga-hoje', local_today(), local_today(), local_today(),
+        now() + interval '3 hours', 1, 'pendente', '{"code":"D3","name":"Teste folga hoje","frequency":"diaria","instructions":["Etapa"],"fields":[],"gates":[]}'::jsonb);
+insert into user_days_off (user_id, day, reason) values
+  ('aaaaaaaa-0000-4000-a000-000000000001', '2020-01-16', 'Outras atividades'),
+  ('aaaaaaaa-0000-4000-a000-000000000001', local_today(), 'Outras atividades');
+select is((select count(*)::int from v_task_facts where id = 'eeeeeeee-0000-4000-a000-000000000002'), 0, 'diária de dia desativado não entra nas métricas');
+select is((select count(*)::int from v_task_facts where id = 'eeeeeeee-0000-4000-a000-000000000003'), 1, 'semanal continua contando no dia desativado');
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-a000-000000000001","role":"authenticated"}', true);
+select throws_ok($$select set_step('eeeeeeee-0000-4000-a000-000000000004', 0, true)$$,
+  '22023', 'Este dia foi desativado pelo gestor: as atividades diárias dele não contam.', 'dia desativado não aceita registro');
+delete from user_days_off where user_id = 'aaaaaaaa-0000-4000-a000-000000000001';
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-a000-000000000002","role":"authenticated"}', true);
+select is((select count(*)::int from user_days_off where user_id = 'aaaaaaaa-0000-4000-a000-000000000001'), 0, 'analista não vê dia desativado de outro');
+reset role;
+select is((select count(*)::int from user_days_off), 2, 'analista não consegue apagar dia desativado');
+delete from user_days_off where day = '2020-01-16';
+select is((select count(*)::int from v_task_facts where id = 'eeeeeeee-0000-4000-a000-000000000002'), 1, 'reativado o dia, a diária volta a contar');
+
+-- Usuário desativado: some de todas as métricas, inclusive o histórico
+update profiles set active = false where id = 'aaaaaaaa-0000-4000-a000-000000000001';
+select is((select count(*)::int from v_task_facts where user_id = 'aaaaaaaa-0000-4000-a000-000000000001'), 0, 'usuário inativo não entra em nenhuma métrica');
 
 select * from finish();
 rollback;

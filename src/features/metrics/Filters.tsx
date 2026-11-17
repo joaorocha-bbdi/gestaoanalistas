@@ -46,7 +46,8 @@ export function FilterBar({ state, actions, showUser = true, showTemplate = true
   showTemplate?: boolean
   presets?: PeriodPreset[]
 }) {
-  const analysts = useAnalysts(true)
+  // Usuário desativado não entra nas métricas, então também sai do filtro.
+  const analysts = useAnalysts()
   const templates = useTemplates()
   return (
     <div className="flex flex-wrap items-center gap-2">

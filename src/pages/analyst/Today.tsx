@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Check, CheckCircle2, Lock, X } from 'lucide-react'
+import { CalendarOff, Check, CheckCircle2, Lock, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { TestRequestDialog } from '@/features/tests/TestRequestDialog'
@@ -7,7 +7,7 @@ import { Button, cx, EmptyState, ErrorNote, Section, Segmented, Skeleton } from 
 import { TaskPanel } from '@/features/tasks/TaskPanel'
 import { TaskRow } from '@/features/tasks/TaskRow'
 import { Plate } from '@/features/tasks/Plate'
-import { stepCounts, useDashboard, useSettings } from '@/data/queries'
+import { stepCounts, useDashboard, useDaysOff, useSettings } from '@/data/queries'
 import { itemStatus, reviewableGroups } from '@/lib/itemReviews'
 import { fmtDayLong, isoWeekday, startOfWeek, todayISO } from '@/lib/dates'
 import { useHotkeys, useNow, useSearchParamState } from '@/lib/hooks'
@@ -26,6 +26,10 @@ export default function Today() {
   // A semana recomeça toda segunda: pendências só desta semana (as de antes ficam com o gestor).
   const weekStart = startOfWeek(today)
   const dash = useDashboard(profile?.id, today, weekStart)
+  // Dias desativados pelo gestor: as diárias desses dias não contam nem aceitam registro.
+  const daysOff = useDaysOff({ userId: profile?.id, from: weekStart, to: today, enabled: !!profile })
+  const offDays = useMemo(() => new Set((daysOff.data ?? []).map((d) => d.day)), [daysOff.data])
+  const todayOff = (daysOff.data ?? []).find((d) => d.day === today)
   const [openId, setOpenId] = useSearchParamState('t')
   const [tabParam, setTab] = useSearchParamState('aba')
   const [sel, setSel] = useState(0)
@@ -34,7 +38,8 @@ export default function Today() {
   const rowRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   const { daily, weekly, monthly, carry } = useMemo(() => {
-    const all = dash.data?.tasks ?? []
+    const isOffDaily = (t: TaskInstance) => t.template_snapshot.frequency === 'diaria' && offDays.has(t.ref_date)
+    const all = (dash.data?.tasks ?? []).filter((t) => !isOffDaily(t))
     const cur = all.filter((t) => t.period_start <= today && t.period_end >= today)
     // Pendências de dias anteriores: ainda dá para enviar (conta como atraso) ou corrigir contestação.
     const carry = all.filter((t) => t.ref_date < today && t.ref_date >= weekStart && !cur.some((c) => c.id === t.id) && t.status !== 'pausada')
@@ -44,7 +49,7 @@ export default function Today() {
       monthly: cur.filter((t) => t.template_snapshot.frequency === 'mensal'),
       carry,
     }
-  }, [dash.data, today, weekStart])
+  }, [dash.data, today, weekStart, offDays])
 
   const counts = useMemo(() => stepCounts(dash.data?.steps), [dash.data])
 
@@ -182,6 +187,15 @@ export default function Today() {
         </button>
       )}
 
+      {todayOff && (
+        <div role="status" className="mb-6 flex items-start gap-2 rounded border border-line-strong bg-subtle px-4 py-3 text-sm">
+          <CalendarOff className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span><span className="font-medium">O gestor desativou o seu dia de hoje.</span>{' '}
+            As atividades diárias de hoje não contam nas métricas.{todayOff.reason ? ` Motivo: ${todayOff.reason}.` : ''}
+            {' '}Semanais e mensais seguem normais.</span>
+        </div>
+      )}
+
       <ErrorNote error={dash.error} />
 
       {loading ? (
@@ -195,8 +209,10 @@ export default function Today() {
           )}
           <Section title="Blocos de hoje" meta={blocks.length ? 'Cada bloco só libera quando o anterior for concluído.' : undefined}>
             {blocks.length ? <div>{rows(blocks.map((b) => b.task))}</div> : (
-              <EmptyState title={weekend ? 'Sem expediente hoje' : 'Nenhuma atividade diária para hoje'}>
-                {weekend
+              <EmptyState title={todayOff ? 'Dia desativado pelo gestor' : weekend ? 'Sem expediente hoje' : 'Nenhuma atividade diária para hoje'}>
+                {todayOff
+                  ? 'Hoje não há blocos diários para fazer. Eles voltam no próximo dia útil.'
+                  : weekend
                   ? 'As atividades diárias voltam no próximo dia útil.'
                   : 'Pode ser feriado ou as atividades estão pausadas. Se não era esperado, fale com o gestor.'}
               </EmptyState>

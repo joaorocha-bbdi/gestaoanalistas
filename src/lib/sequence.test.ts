@@ -48,20 +48,21 @@ describe('blocos em sequência', () => {
 })
 
 describe('progresso por etapas', () => {
-  it('só chega a 100% depois do envio aceito', () => {
+  it('marcar todas as etapas dá 100%', () => {
     expect(blockProgress(4, 0, false)).toBe(0)
-    expect(blockProgress(4, 2, false)).toBeCloseTo(2 / 5)
-    expect(blockProgress(4, 4, false)).toBeCloseTo(4 / 5) // todas as etapas marcadas, ainda não enviado
+    expect(blockProgress(4, 2, false)).toBeCloseTo(2 / 4)
+    expect(blockProgress(4, 4, false)).toBe(1) // todas as etapas marcadas, mesmo antes do envio
     expect(blockProgress(4, 4, true)).toBe(1)
     expect(blockProgress(0, 0, false)).toBe(0)
+    expect(blockProgress(0, 0, true)).toBe(1) // sem etapas: conta quando concluído
   })
 
   it('progresso do dia soma os pontos de todos os blocos', () => {
     const blocks = [
-      { task: block('D1', 10, 3, 'concluida_prazo'), stepsDone: 3, stepsTotal: 3 }, // 4 de 4
-      { task: block('D2', 20, 5), stepsDone: 2, stepsTotal: 5 },                   // 2 de 6
+      { task: block('D1', 10, 3, 'concluida_prazo'), stepsDone: 3, stepsTotal: 3 }, // 3 de 3
+      { task: block('D2', 20, 5), stepsDone: 2, stepsTotal: 5 },                   // 2 de 5
     ]
-    expect(dayProgress(blocks)).toBeCloseTo(6 / 10)
+    expect(dayProgress(blocks)).toBeCloseTo(5 / 8)
   })
 
   it('envio sem todas as etapas marcadas é barrado e diz quantas faltam', () => {
