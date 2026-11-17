@@ -6,7 +6,7 @@ import { ErrorNote, Spinner } from '@/components/ui'
 import { ForgotPassword, Login, SetPassword } from '@/pages/auth/AuthPages'
 import Today from '@/pages/analyst/Today'
 import {
-  AnalystDetail, Audit, Export, History, Links, Overview, Performance, Review, Settings, Team, TemplateEditor, Templates,
+  AnalystDetail, Audit, Daily, Export, History, Links, Overview, Performance, Review, Settings, Team, TemplateEditor, Templates,
   TestApprovals, Tests, Users, Week,
 } from '@/pages/lazy'
 
@@ -70,6 +70,7 @@ export default function App() {
           <Route path="testes" element={n(<Tests />)} />
           <Route path="links" element={<Links />} />
           <Route path="admin" element={a(<Overview />)} />
+          <Route path="admin/diario" element={a(<Daily />)} />
           <Route path="admin/equipe" element={a(<Team />)} />
           <Route path="admin/equipe/:id" element={a(<AnalystDetail />)} />
           <Route path="admin/revisao" element={a(<Review />)} />

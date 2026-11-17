@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { must, supabase } from '@/lib/supabase'
+import { addDays } from '@/lib/dates'
 import { DEFAULT_WEIGHTS } from '@/lib/metrics'
 import { applyStepToggle, stepsByTask } from '@/lib/perf'
 import type {
@@ -113,6 +114,23 @@ export function useTasks(opts: { userId?: string; from: string; to: string; enab
       let q = supabase.from('task_instances').select('*').gte('ref_date', opts.from).lte('ref_date', opts.to)
       if (opts.userId) q = q.eq('user_id', opts.userId)
       return must(await q.order('due_at')) as TaskInstance[]
+    },
+  })
+}
+
+/**
+ * O que um analista fez num dia: atividades do dia (data de referência) e tudo o
+ * que ele enviou nesse dia (inclui semanais e mensais de outro período).
+ */
+export function useDayWork(day: string | null, userId: string | null) {
+  return useQuery({
+    queryKey: ['tasks', 'dia', day, userId],
+    enabled: !!day && !!userId,
+    queryFn: async () => {
+      const next = addDays(day!, 1)
+      return must(await supabase.from('task_instances').select('*').eq('user_id', userId!)
+        .or(`ref_date.eq.${day},and(submitted_at.gte.${day}T00:00:00-03:00,submitted_at.lt.${next}T00:00:00-03:00)`)
+        .order('due_at')) as TaskInstance[]
     },
   })
 }

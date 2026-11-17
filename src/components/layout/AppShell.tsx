@@ -1,37 +1,38 @@
 import { Suspense, useEffect, useState, type ReactNode } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
-  Activity, CalendarCheck2, CalendarRange, Download, FlaskConical, History, Layers, Link2, LayoutDashboard, LogOut, Menu, Monitor, Moon,
+  Activity, CalendarCheck2, CalendarDays, CalendarRange, Download, FlaskConical, History, Layers, Link2, LayoutDashboard, LogOut, Menu, Monitor, Moon,
   PanelLeftClose, PanelLeftOpen, ScrollText, ShieldCheck, SlidersHorizontal, Sun, UserCog, Users, X,
 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthProvider'
-import { useHotkeys, useTheme, type Theme } from '@/lib/hooks'
-import { cx, Dialog, IconButton, Kbd, Spinner } from '@/components/ui'
+import { useTheme, type Theme } from '@/lib/hooks'
+import { cx, IconButton, Spinner } from '@/components/ui'
 import { preloadRoute } from '@/pages/lazy'
 import { useRefreshTasks } from '@/data/queries'
 
-interface NavItem { to: string; label: string; icon: typeof Activity; key?: string }
+interface NavItem { to: string; label: string; icon: typeof Activity }
 
 const ANALYST_NAV: NavItem[] = [
-  { to: '/hoje', label: 'Hoje', icon: CalendarCheck2, key: '1' },
-  { to: '/semana', label: 'Minha semana', icon: CalendarRange, key: '2' },
-  { to: '/historico', label: 'Histórico', icon: History, key: '3' },
-  { to: '/desempenho', label: 'Desempenho', icon: Activity, key: '4' },
-  { to: '/testes', label: 'Testes', icon: FlaskConical, key: '5' },
-  { to: '/links', label: 'Links', icon: Link2, key: '6' },
+  { to: '/hoje', label: 'Hoje', icon: CalendarCheck2 },
+  { to: '/semana', label: 'Minha semana', icon: CalendarRange },
+  { to: '/historico', label: 'Histórico', icon: History },
+  { to: '/desempenho', label: 'Desempenho', icon: Activity },
+  { to: '/testes', label: 'Testes', icon: FlaskConical },
+  { to: '/links', label: 'Links', icon: Link2 },
 ]
 
 const ADMIN_NAV: NavItem[] = [
-  { to: '/admin', label: 'Visão geral', icon: LayoutDashboard, key: '1' },
-  { to: '/admin/equipe', label: 'Equipe', icon: Users, key: '2' },
-  { to: '/admin/revisao', label: 'Revisão', icon: ShieldCheck, key: '3' },
-  { to: '/admin/testes', label: 'Aprovação de testes', icon: FlaskConical, key: '4' },
-  { to: '/admin/modelos', label: 'Modelos de atividade', icon: Layers, key: '5' },
-  { to: '/admin/usuarios', label: 'Usuários e acessos', icon: UserCog, key: '6' },
-  { to: '/admin/parametros', label: 'Parâmetros', icon: SlidersHorizontal, key: '7' },
-  { to: '/admin/auditoria', label: 'Auditoria', icon: ScrollText, key: '8' },
-  { to: '/admin/exportar', label: 'Exportar', icon: Download, key: '9' },
-  { to: '/links', label: 'Links', icon: Link2, key: '0' },
+  { to: '/admin', label: 'Visão geral', icon: LayoutDashboard },
+  { to: '/admin/diario', label: 'Desempenho diário', icon: CalendarDays },
+  { to: '/admin/equipe', label: 'Equipe', icon: Users },
+  { to: '/admin/revisao', label: 'Revisão', icon: ShieldCheck },
+  { to: '/admin/testes', label: 'Aprovação de testes', icon: FlaskConical },
+  { to: '/admin/modelos', label: 'Modelos de atividade', icon: Layers },
+  { to: '/admin/usuarios', label: 'Usuários e acessos', icon: UserCog },
+  { to: '/admin/parametros', label: 'Parâmetros', icon: SlidersHorizontal },
+  { to: '/admin/auditoria', label: 'Auditoria', icon: ScrollText },
+  { to: '/admin/exportar', label: 'Exportar', icon: Download },
+  { to: '/links', label: 'Links', icon: Link2 },
 ]
 
 const COLLAPSE_KEY = 'menu-recolhido'
@@ -53,10 +54,8 @@ export function AppShell() {
   const isAdmin = profile?.role === 'admin'
   const nav = isAdmin ? ADMIN_NAV : ANALYST_NAV
   const [menuOpen, setMenuOpen] = useState(false)
-  const [helpOpen, setHelpOpen] = useState(false)
   const [collapsed, toggleCollapsed] = useCollapsed()
   const location = useLocation()
-  const navigate = useNavigate()
   useRefreshTasks()
 
   useEffect(() => setMenuOpen(false), [location.pathname])
@@ -72,14 +71,11 @@ export function AppShell() {
     return () => clearTimeout(id)
   }, [nav])
 
-  useGoHotkeys(nav, navigate)
-  useHotkeys({ '?': () => setHelpOpen(true), '[': toggleCollapsed })
-
   return (
     <div className={cx('min-h-dvh transition-[padding] duration-200', collapsed ? 'lg:pl-16' : 'lg:pl-60')}>
       <aside className={cx('fixed inset-y-0 left-0 z-20 hidden bg-rail text-rail-ink transition-[width] duration-200 lg:block',
         collapsed ? 'w-16' : 'w-60')}>
-        <Sidebar nav={nav} isAdmin={isAdmin} collapsed={collapsed} onToggle={toggleCollapsed} onHelp={() => setHelpOpen(true)} />
+        <Sidebar nav={nav} isAdmin={isAdmin} collapsed={collapsed} onToggle={toggleCollapsed} />
       </aside>
 
       {/* Barra superior no celular */}
@@ -93,7 +89,7 @@ export function AppShell() {
           <div className="absolute inset-0 bg-black/40 dark:bg-black/60" onClick={() => setMenuOpen(false)} aria-hidden />
           <div className="relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-lg bg-rail text-rail-ink shadow-pop">
             <IconButton label="Fechar menu" className="absolute right-2 top-3.5 text-rail-ink/70 hover:bg-rail-ink/10" onClick={() => setMenuOpen(false)}><X className="size-4" /></IconButton>
-            <Sidebar nav={nav} isAdmin={isAdmin} collapsed={false} onHelp={() => setHelpOpen(true)} />
+            <Sidebar nav={nav} isAdmin={isAdmin} collapsed={false} />
           </div>
         </div>
       )}
@@ -104,18 +100,6 @@ export function AppShell() {
         </Suspense>
       </main>
 
-      <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} title="Atalhos de teclado">
-        <ShortcutList items={[
-          ...nav.filter((n) => n.key).map((n) => [`g ${n.key}`, `Ir para ${n.label}`] as [string, string]),
-          ['[', 'Recolher / expandir o menu'],
-          ['j / k', 'Próximo / anterior na lista'],
-          ['Enter', 'Abrir item selecionado'],
-          ['Ctrl + Enter', 'Enviar a atividade aberta'],
-          ['Ctrl + S', 'Salvar rascunho'],
-          ...(isAdmin ? [['v', 'Validar (na revisão)'], ['c', 'Contestar (na revisão)']] as [string, string][] : []),
-          ['Esc', 'Fechar painel'],
-        ]} />
-      </Dialog>
     </div>
   )
 }
@@ -130,8 +114,8 @@ function RailTip({ children }: { children: ReactNode }) {
   )
 }
 
-function Sidebar({ nav, isAdmin, collapsed, onToggle, onHelp }: {
-  nav: NavItem[]; isAdmin: boolean; collapsed: boolean; onToggle?: () => void; onHelp: () => void
+function Sidebar({ nav, isAdmin, collapsed, onToggle }: {
+  nav: NavItem[]; isAdmin: boolean; collapsed: boolean; onToggle?: () => void
 }) {
   const { profile, signOut } = useAuth()
   const quiet = 'text-rail-ink/60 hover:bg-rail-ink/[0.07] hover:text-rail-ink'
@@ -168,10 +152,7 @@ function Sidebar({ nav, isAdmin, collapsed, onToggle, onHelp }: {
                   {isActive && <span className="absolute inset-y-1.5 left-0 w-1 rounded-r bg-rail-accent" aria-hidden />}
                   <n.icon className={cx('size-4 shrink-0', isActive ? 'text-rail-accent' : 'text-rail-ink/55 group-hover:text-rail-ink/85')} strokeWidth={1.75} aria-hidden />
                   {collapsed ? <RailTip>{n.label}</RailTip> : (
-                    <>
-                      <span className="flex-1 truncate">{n.label}</span>
-                      {n.key && <span className="hidden text-xs text-rail-ink/45 group-hover:inline">g {n.key}</span>}
-                    </>
+<span className="flex-1 truncate">{n.label}</span>
                   )}
                 </>
               )}
@@ -183,15 +164,12 @@ function Sidebar({ nav, isAdmin, collapsed, onToggle, onHelp }: {
       {collapsed ? (
         <div className="flex flex-col items-center gap-1 py-3">
           <ThemeCycle />
-          <button onClick={onHelp} aria-label="Atalhos de teclado" className={cx('group relative flex size-9 items-center justify-center rounded text-sm font-medium', quiet)}>
-            ?<RailTip>Atalhos de teclado</RailTip>
-          </button>
           <button onClick={() => void signOut()} aria-label="Sair" className={cx('group relative flex size-9 items-center justify-center rounded', quiet)}>
             <LogOut className="size-4" /><RailTip>Sair · {profile?.full_name}</RailTip>
           </button>
           {onToggle && (
             <button onClick={onToggle} aria-label="Expandir menu" aria-expanded={false} className={cx('group relative mt-1 flex size-9 items-center justify-center rounded', quiet)}>
-              <PanelLeftOpen className="size-4" /><RailTip>Expandir menu <span className="opacity-60">[</span></RailTip>
+              <PanelLeftOpen className="size-4" /><RailTip>Expandir menu</RailTip>
             </button>
           )}
         </div>
@@ -205,52 +183,16 @@ function Sidebar({ nav, isAdmin, collapsed, onToggle, onHelp }: {
             </div>
             <IconButton label="Sair" className={quiet} onClick={() => void signOut()}><LogOut className="size-4" /></IconButton>
           </div>
-          <div className="flex items-center justify-between gap-2">
-            <button onClick={onHelp} className="flex items-center gap-2 text-xs text-rail-ink/55 hover:text-rail-ink">
-              <Kbd className="border-rail-ink/20 bg-transparent text-rail-ink/70">?</Kbd> Atalhos de teclado
-            </button>
-            {onToggle && (
+          {onToggle && (
+          <div className="flex items-center justify-end gap-2">
               <IconButton label="Recolher menu" aria-expanded className={quiet} onClick={onToggle}>
                 <PanelLeftClose className="size-4" />
               </IconButton>
-            )}
           </div>
+          )}
         </div>
       )}
     </nav>
-  )
-}
-
-/** "g" seguido de número navega entre seções. */
-function useGoHotkeys(nav: NavItem[], navigate: (to: string) => void) {
-  useEffect(() => {
-    let armed = 0
-    const h = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement
-      if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return
-      if (e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key === 'g') { armed = Date.now(); return }
-      if (armed && Date.now() - armed < 1200) {
-        const item = nav.find((n) => n.key === e.key)
-        armed = 0
-        if (item) { e.preventDefault(); navigate(item.to) }
-      }
-    }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
-  }, [nav, navigate])
-}
-
-function ShortcutList({ items }: { items: [string, string][] }) {
-  return (
-    <dl className="divide-y divide-line">
-      {items.map(([k, v]) => (
-        <div key={k} className="flex items-center justify-between py-2">
-          <dt className="text-sm text-muted">{v}</dt>
-          <dd className="font-mono text-xs">{k}</dd>
-        </div>
-      ))}
-    </dl>
   )
 }
 

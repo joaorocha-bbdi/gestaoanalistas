@@ -14,6 +14,7 @@ const loaders = {
   '/testes': () => import('@/pages/analyst/Tests'),
   '/links': () => import('@/pages/Links'),
   '/admin': () => import('@/pages/admin/Overview'),
+  '/admin/diario': () => import('@/pages/admin/Daily'),
   '/admin/equipe': () => import('@/pages/admin/Team'),
   '/admin/revisao': () => import('@/pages/admin/Review'),
   '/admin/testes': () => import('@/pages/admin/TestApprovals'),
@@ -38,6 +39,7 @@ export const Performance = lazy(loaders['/desempenho'])
 export const Tests = lazy(loaders['/testes'])
 export const Links = lazy(loaders['/links'])
 export const Overview = lazy(loaders['/admin'])
+export const Daily = lazy(loaders['/admin/diario'])
 export const Team = lazy(loaders['/admin/equipe'])
 export const AnalystDetail = lazy(() => import('@/pages/admin/Team').then((m) => ({ default: m.AnalystDetail })))
 export const Review = lazy(loaders['/admin/revisao'])
