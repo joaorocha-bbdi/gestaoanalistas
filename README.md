@@ -219,3 +219,5 @@ src/pages/analyst/     Hoje, Minha semana, Histórico, Desempenho
 src/pages/admin/       Visão geral, Equipe, Revisão, Modelos, Usuários, Parâmetros, Auditoria, Exportar
 src/adapters/          interface para integrações futuras (hub), sem uso na v1
 ```
+
+<!-- rebuild: 2026-11-18 -->
